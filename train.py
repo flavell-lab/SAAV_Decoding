@@ -66,41 +66,41 @@ def main(
     test_pos_ys = jnp.ones((test_pos_xs.shape[0], 1))
     test_neg_ys = jnp.zeros((test_neg_xs.shape[0], 1))
     
-    # cached_extract = jax.jit(partial(extract_all_sections, n_sections=test['positive'].shape[1] - time_range + 1))
-    # test_pos_xs, test_pos_ys = cached_extract(test_pos_xs, test_pos_ys)
+    cached_extract = jax.jit(partial(extract_all_sections, n_sections=test['positive'].shape[1] - time_range + 1))
+    test_pos_xs, test_pos_ys = cached_extract(test_pos_xs, test_pos_ys)
     
-    # test_neg_xs, test_neg_ys = cached_extract(test_neg_xs, test_neg_ys)
+    test_neg_xs, test_neg_ys = cached_extract(test_neg_xs, test_neg_ys)
     
     # Shift the data by a random offset
-    key, subkey = jrandom.split(key)
-    offset = jrandom.randint(subkey, (test_pos_xs.shape[0],), 0, test_pos_xs.shape[1]-time_range+1)
-    test_pos_xs = jax.vmap(lambda idx: jnp.roll(test_pos_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_pos_xs.shape[0]))
+    # key, subkey = jrandom.split(key)
+    # offset = jrandom.randint(subkey, (test_pos_xs.shape[0],), 0, test_pos_xs.shape[1]-time_range+1)
+    # test_pos_xs = jax.vmap(lambda idx: jnp.roll(test_pos_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_pos_xs.shape[0]))
 
-    key, subkey = jrandom.split(key)
-    offset = jrandom.randint(subkey, (test_neg_xs.shape[0],), 0, test_neg_xs.shape[1]-time_range+1)
-    test_neg_xs = jax.vmap(lambda idx: jnp.roll(test_neg_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_neg_xs.shape[0]))
+    # key, subkey = jrandom.split(key)
+    # offset = jrandom.randint(subkey, (test_neg_xs.shape[0],), 0, test_neg_xs.shape[1]-time_range+1)
+    # test_neg_xs = jax.vmap(lambda idx: jnp.roll(test_neg_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_neg_xs.shape[0]))
 
     min_len = min(valid["positive"].shape[0], valid["negative"].shape[0])
     valid_xs = jnp.concatenate([valid["positive"][:min_len], valid["negative"][:min_len]], axis=0)
     valid_ys = jnp.concatenate([jnp.ones((min_len,1)), jnp.zeros((min_len,1))])
 
-    # valid_xs, valid_ys = cached_extract(valid_xs, valid_ys)
+    valid_xs, valid_ys = cached_extract(valid_xs, valid_ys)
 
     # Shift the data by a random offset
-    key, subkey = jrandom.split(key)
-    offset = jrandom.randint(subkey, (valid_xs.shape[0],), 0, valid_xs.shape[1]-time_range+1)
-    valid_xs = jax.vmap(lambda idx: jnp.roll(valid_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(valid_xs.shape[0]))
+    # key, subkey = jrandom.split(key)
+    # offset = jrandom.randint(subkey, (valid_xs.shape[0],), 0, valid_xs.shape[1]-time_range+1)
+    # valid_xs = jax.vmap(lambda idx: jnp.roll(valid_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(valid_xs.shape[0]))
 
     min_len = min(train["positive"].shape[0], train["negative"].shape[0])
     train_xs = jnp.concatenate([train["positive"][:min_len], train["negative"][:min_len]], axis=0)
     train_ys = jnp.concatenate([jnp.ones((min_len,1)), jnp.zeros((min_len,1))])
 
-    # train_xs, train_ys = cached_extract(train_xs, train_ys)
+    train_xs, train_ys = cached_extract(train_xs, train_ys)
 
     # Shift the data by a random offset
-    key, subkey = jrandom.split(key)
-    offset = jrandom.randint(subkey, (train_xs.shape[0],), 0, train_xs.shape[1]-time_range+1)
-    train_xs = jax.vmap(lambda idx: jnp.roll(train_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(train_xs.shape[0]))
+    # key, subkey = jrandom.split(key)
+    # offset = jrandom.randint(subkey, (train_xs.shape[0],), 0, train_xs.shape[1]-time_range+1)
+    # train_xs = jax.vmap(lambda idx: jnp.roll(train_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(train_xs.shape[0]))
 
 
     key, model_key = jrandom.split(key)

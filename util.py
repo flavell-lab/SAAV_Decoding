@@ -34,19 +34,19 @@ def establish_batches(key, data, min_len):
     
     # concatenate the two categories and shuffle them
     train_xs = jnp.concatenate([pos_cat, neg_cat], axis=0)
+    train_ys = jnp.concatenate([jnp.ones((min_len,1)), jnp.zeros((min_len,1))], axis=0) 
+    train_xs, train_ys = extract_all_sections(train_xs, train_ys, train_xs.shape[1] - time_range + 1)
+
     key, subkey = jrandom.split(key)
     train_xs, perm = shuffle_data(train_xs, subkey)
-    train_ys = jnp.concatenate([jnp.ones((min_len,1)), jnp.zeros((min_len,1))], axis=0) 
-
+    
     # key, subkey = jrandom.split(key)
     train_ys = jax.lax.select(shuffle, train_ys, train_ys[perm]) # Shuffles labels with same permutation if shuffle is False
 
-    # train_xs, train_ys = extract_all_sections(train_xs, train_ys, train_xs.shape[1] - time_range + 1)
-
     # Shift the data by a random offset
-    key, subkey = jrandom.split(key)
-    offset = jrandom.randint(subkey, (train_xs.shape[0],), 0, train_xs.shape[1]-time_range+1)
-    train_xs = jax.vmap(lambda idx: jnp.roll(train_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(train_xs.shape[0]))
+    # key, subkey = jrandom.split(key)
+    # offset = jrandom.randint(subkey, (train_xs.shape[0],), 0, train_xs.shape[1]-time_range+1)
+    # train_xs = jax.vmap(lambda idx: jnp.roll(train_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(train_xs.shape[0]))
 
     print(f"Train_xs: {train_xs.shape}, Train_ys: {train_ys.shape}")
     truncated_len = train_xs.shape[0] - train_xs.shape[0]%batch_size
