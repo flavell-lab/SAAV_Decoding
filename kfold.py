@@ -4,7 +4,7 @@ import jax.random as jrandom
 
 from jaxtyping import PRNGKeyArray, Int
 
-from fit import main
+from train import main
 from util import rotate_data
 
 from config import k_folds, channel_selection

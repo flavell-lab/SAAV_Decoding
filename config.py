@@ -3,7 +3,7 @@ import jax.random as jrandom
 
 k_folds: int = 5
 # test_split = 1 / k_folds
-epochs: int = 20000
+epochs: int = 2000
 hidden_size: int = 8
 learning_rate: float = 1e-3
 batch_size: int = 16
