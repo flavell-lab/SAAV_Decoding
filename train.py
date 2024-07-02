@@ -104,8 +104,8 @@ def main(
 
 
     key, model_key = jrandom.split(key)
-    # model = RNN(in_size=train_xs.shape[-1], out_size=1, hidden_size=hidden_size, key=model_key)
-    model = FNN(in_size=train_xs.shape[-1] * train_xs.shape[-2], out_size=1, hidden_size=hidden_size, key=model_key)
+    model = RNN(in_size=train_xs.shape[-1], out_size=1, hidden_size=hidden_size, key=model_key)
+    # model = FNN(in_size=train_xs.shape[-1] * train_xs.shape[-2], out_size=1, hidden_size=hidden_size, key=model_key)
     # model = MLP(in_size=train_xs.shape[-1] * train_xs.shape[-2], out_size=1, hidden_size=hidden_size, depth=3, key=model_key)
 
     @eqx.filter_jit
