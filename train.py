@@ -7,10 +7,8 @@ import equinox as eqx
 from functools import partial
 from jaxtyping import PRNGKeyArray, Array
 
-from model import MLP, FNN, RNN
+from model import RNN
 from util import establish_batches, extract_all_sections
-
-from config import epochs, hidden_size, learning_rate, l2_eps, time_range, eps, eval_period
 
 
 @eqx.filter_jit
@@ -26,17 +24,15 @@ def evaluate_loss(model, x, y, key):
     inf_model = eqx.nn.inference_mode(model)
     subkeys = jrandom.split(key, x.shape[0])
     pred_y = jax.vmap(inf_model)(x, subkeys)
-    cross_ent = -jnp.mean(y * jnp.log(pred_y + eps) + (1 - y) * jnp.log(1 - pred_y + eps))
-    l2_reg = l2_eps * model.weight_sum()
-    return cross_ent + l2_reg
+    cross_ent = -jnp.mean(y * jnp.log(pred_y + 1e-5) + (1 - y) * jnp.log(1 - pred_y + 1e-5))
+    return cross_ent
 
 @eqx.filter_value_and_grad
 def compute_loss(model, x, y, key):
     subkeys = jrandom.split(key, x.shape[0])
     pred_y = jax.vmap(model)(x, subkeys)
-    cross_ent = -jnp.mean(y * jnp.log(pred_y + eps) + (1 - y) * jnp.log(1 - pred_y + eps))
-    l2_reg = l2_eps * model.weight_sum()
-    return cross_ent + l2_reg
+    cross_ent = -jnp.mean(y * jnp.log(pred_y + 1e-5) + (1 - y) * jnp.log(1 - pred_y + 1e-5))
+    return cross_ent
 
 
 def main(
@@ -44,8 +40,16 @@ def main(
     train: dict,
     valid: dict,
     test: dict,
-    channel_select: Array
+    channel_select: Array,
+    hyperparams: dict
 ) -> dict:
+    
+    epochs = hyperparams["epochs"]
+    hidden_size = hyperparams["hidden_size"]
+    learning_rate = hyperparams["learning_rate"]
+    time_range = hyperparams["time_range"]
+    eval_period = hyperparams["eval_period"]
+
     train_perf = jnp.zeros((epochs,))
     train_loss = jnp.zeros((epochs,))
     valid_perf = jnp.zeros((epochs,))
@@ -66,19 +70,9 @@ def main(
     test_pos_ys = jnp.ones((test_pos_xs.shape[0], 1))
     test_neg_ys = jnp.zeros((test_neg_xs.shape[0], 1))
     
-    cached_extract = jax.jit(partial(extract_all_sections, n_sections=test['positive'].shape[1] - time_range + 1))
+    cached_extract = jax.jit(partial(extract_all_sections, n_sections=test['positive'].shape[1] - time_range + 1, hyperparams=hyperparams))
     test_pos_xs, test_pos_ys = cached_extract(test_pos_xs, test_pos_ys)
-    
     test_neg_xs, test_neg_ys = cached_extract(test_neg_xs, test_neg_ys)
-    
-    # Shift the data by a random offset
-    # key, subkey = jrandom.split(key)
-    # offset = jrandom.randint(subkey, (test_pos_xs.shape[0],), 0, test_pos_xs.shape[1]-time_range+1)
-    # test_pos_xs = jax.vmap(lambda idx: jnp.roll(test_pos_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_pos_xs.shape[0]))
-
-    # key, subkey = jrandom.split(key)
-    # offset = jrandom.randint(subkey, (test_neg_xs.shape[0],), 0, test_neg_xs.shape[1]-time_range+1)
-    # test_neg_xs = jax.vmap(lambda idx: jnp.roll(test_neg_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(test_neg_xs.shape[0]))
 
     min_len = min(valid["positive"].shape[0], valid["negative"].shape[0])
     valid_xs = jnp.concatenate([valid["positive"][:min_len], valid["negative"][:min_len]], axis=0)
@@ -86,27 +80,14 @@ def main(
 
     valid_xs, valid_ys = cached_extract(valid_xs, valid_ys)
 
-    # Shift the data by a random offset
-    # key, subkey = jrandom.split(key)
-    # offset = jrandom.randint(subkey, (valid_xs.shape[0],), 0, valid_xs.shape[1]-time_range+1)
-    # valid_xs = jax.vmap(lambda idx: jnp.roll(valid_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(valid_xs.shape[0]))
-
     min_len = min(train["positive"].shape[0], train["negative"].shape[0])
     train_xs = jnp.concatenate([train["positive"][:min_len], train["negative"][:min_len]], axis=0)
     train_ys = jnp.concatenate([jnp.ones((min_len,1)), jnp.zeros((min_len,1))])
 
     train_xs, train_ys = cached_extract(train_xs, train_ys)
 
-    # Shift the data by a random offset
-    # key, subkey = jrandom.split(key)
-    # offset = jrandom.randint(subkey, (train_xs.shape[0],), 0, train_xs.shape[1]-time_range+1)
-    # train_xs = jax.vmap(lambda idx: jnp.roll(train_xs[idx], offset[idx], axis=0)[-time_range:])(jnp.arange(train_xs.shape[0]))
-
-
     key, model_key = jrandom.split(key)
     model = RNN(in_size=train_xs.shape[-1], out_size=1, hidden_size=hidden_size, key=model_key)
-    # model = FNN(in_size=train_xs.shape[-1] * train_xs.shape[-2], out_size=1, hidden_size=hidden_size, key=model_key)
-    # model = MLP(in_size=train_xs.shape[-1] * train_xs.shape[-2], out_size=1, hidden_size=hidden_size, depth=3, key=model_key)
 
     @eqx.filter_jit
     def make_step(key, model, opt_state, x, y):
@@ -115,7 +96,7 @@ def main(
         model = eqx.apply_updates(model, updates)
         return model, opt_state
     
-    cached_establish = jax.jit(partial(establish_batches, data=train, min_len=min_len))
+    cached_establish = jax.jit(partial(establish_batches, data=train, min_len=min_len, hyperparams=hyperparams))
     
     def single_epoch(key, model, opt_state):
         key, subkey = jrandom.split(key)
@@ -148,9 +129,6 @@ def main(
 
         if (epoch+1) % eval_period == 0:
             jax.debug.print("Epoch: {}", epoch+1)
-            # jax.debug.print("Train: {} Valid: {}", acc['train'], acc['valid'])
-
-            # print(f"Epoch {epoch+1} Train: {loss['train']:.4f} Valid: {loss['valid']:.4f}", end="\r")
 
     results = {}
     

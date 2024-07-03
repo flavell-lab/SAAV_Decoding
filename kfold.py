@@ -1,5 +1,4 @@
 import jax
-import jax.numpy as jnp
 import jax.random as jrandom
 
 from jaxtyping import PRNGKeyArray, Int
@@ -7,15 +6,15 @@ from jaxtyping import PRNGKeyArray, Int
 from train import main
 from util import rotate_data
 
-from config import k_folds, channel_selection
-
-
 def single_fold(
     key: PRNGKeyArray, 
     i: Int,
     j: Int,
     data: Int,
+    hyperparams: dict
 ):
+    k_folds = hyperparams["k_folds"]
+
     fold_data = {}
     # Wrap around the data so each fold is different
     fold_data["positive"],_ = rotate_data(data["positive"], k_folds, i)
@@ -41,7 +40,9 @@ def single_fold(
     valid["positive"] = train_valid["positive"][int(train_valid["positive"].shape[0]*(1-1/(k_folds-1))):]
     valid["negative"] = train_valid["negative"][int(train_valid["negative"].shape[0]*(1-1/(k_folds-1))):]
     
+    channel_selection = hyperparams["channel_selection"]
+
     keys = jrandom.split(key)
-    results = jax.vmap(lambda ks, sel: main(ks, train, valid, test, sel))(keys, channel_selection)
+    results = jax.vmap(lambda ks, sel: main(ks, train, valid, test, sel, hyperparams))(keys, channel_selection)
         
     return results
