@@ -10,7 +10,7 @@ eval_period: int = 20
 shuffle: bool = False ### Shuffle labels
 eps = 1e-5
 l2_eps = 0#1e-2
-time_range = 9
+time_range = 5
 channel_selection = jnp.array([[0,1], [2,1]])
 
 key = jrandom.PRNGKey(1) 
