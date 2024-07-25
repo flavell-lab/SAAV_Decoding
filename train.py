@@ -15,23 +15,24 @@ from util import establish_batches, extract_all_sections
 def evaluate(model, x, y, key):
     inf_model = eqx.nn.inference_mode(model)
     subkeys = jrandom.split(key, x.shape[0])
-    pred_y = jax.vmap(inf_model)(x, subkeys)
-    n_correct = jnp.sum((pred_y > 0.5) == y)
+    scores_y = jax.vmap(inf_model)(x, subkeys)
+    pred_y = (scores_y > 0.5) == y
+    n_correct = jnp.sum(pred_y)
     return (n_correct / x.shape[0])
 
 @eqx.filter_jit
 def evaluate_loss(model, x, y, key):
     inf_model = eqx.nn.inference_mode(model)
     subkeys = jrandom.split(key, x.shape[0])
-    pred_y = jax.vmap(inf_model)(x, subkeys)
-    cross_ent = -jnp.mean(y * jnp.log(pred_y + 1e-5) + (1 - y) * jnp.log(1 - pred_y + 1e-5))
+    scores_y = jax.vmap(inf_model)(x, subkeys)
+    cross_ent = -jnp.mean(y * jnp.log(scores_y + 1e-5) + (1 - y) * jnp.log(1 - scores_y + 1e-5))
     return cross_ent
 
 @eqx.filter_value_and_grad
 def compute_loss(model, x, y, key):
     subkeys = jrandom.split(key, x.shape[0])
-    pred_y = jax.vmap(model)(x, subkeys)
-    cross_ent = -jnp.mean(y * jnp.log(pred_y + 1e-5) + (1 - y) * jnp.log(1 - pred_y + 1e-5))
+    scores_y = jax.vmap(model)(x, subkeys)
+    cross_ent = -jnp.mean(y * jnp.log(scores_y + 1e-5) + (1 - y) * jnp.log(1 - scores_y + 1e-5))
     return cross_ent
 
 
@@ -88,6 +89,7 @@ def main(
 
     key, model_key = jrandom.split(key)
     model = RNN(in_size=train_xs.shape[-1], out_size=1, hidden_size=hidden_size, key=model_key)
+
 
     @eqx.filter_jit
     def make_step(key, model, opt_state, x, y):
